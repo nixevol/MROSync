@@ -1,8 +1,32 @@
 import threading
+import time
 
+from ftpsync import FTPSync
 from diskclean import DiskClean
 from ftpsinfo import FtpServerManager
 from dbconfig import MySQLInfo
+
+
+class FTPThread(threading.Thread):
+    """自定义线程类"""
+
+    def __init__(self, ftp_server):
+        threading.Thread.__init__(self)
+        self.ftp_server = ftp_server
+        self.FTPSync = FTPSync(ftp_name=ftp_server.name, ftp_ip=ftp_server.host, ftp_port=int(ftp_server.port),
+                               ftp_user=ftp_server.username, ftp_password=ftp_server.passwd, local_dir=ftp_server.path)
+        self.stop_flag = threading.Event()  # 初始化停止标志
+
+    def run(self):
+        print(f"{self.ftp_server} 线程启动")
+        while not self.stop_flag.is_set():
+            try:
+                self.FTPSync.start()
+            except Exception as e:
+                print(f"{self.ftp_server} 下载出错：{e}")
+            time.sleep(60)
+        print(f"{self.ftp_server} 线程停止")
+
 
 class Control:
     def __init__(self):
@@ -10,28 +34,39 @@ class Control:
         self.ftp = FtpServerManager
         self.disk = DiskClean
         self.status = False
+        self.threads = []  # 存储线程对象
+        self.is_started = False  # 是否已经启动标志
+        self.stop_flag = False  # 停止标志
 
     def start(self):
-        if self.status:
-            print("服务已经在运行中...")
-        else:
-            self.status = True
-            print("服务开始运行...")
-            # 启动 FTP 服务器状态检查线程
-            ftp_thread = threading.Thread(target=self.ftp_check)
-            ftp_thread.setDaemon(True)
-            ftp_thread.start()
-            # 启动储存空间检查线程
-            disk_thread = threading.Thread(target=self.disk_check)
-            disk_thread.setDaemon(True)
-            disk_thread.start()
+        """启动FTP同步"""
+        if self.is_started:
+            print("线程已经启动")
+            return
+        print("开始启动线程")
+        ftp_servers = self.ftp().get_connected_servers()
+        for ftp_server in ftp_servers:
+            thread = FTPThread(ftp_server)
+            thread.start()
+            self.threads.append(thread)
+        self.is_started = True
+        print("线程已经全部启动")
 
     def stop(self):
-        if not self.status:
-            print("服务已经停止运行...")
-        else:
-            self.status = False
-            print("服务停止运行...")
+        """停止FTP同步"""
+        if not self.is_started:
+            print("线程已经关闭")
+            return
+        print("开始停止线程")
+        self.stop_flag = True
+        for thread in self.threads:
+            thread.stop_flag.set()  # 设置停止标志
+        for thread in self.threads:
+            thread.join()  # 等待线程结束
+        self.threads.clear()
+        self.is_started = False
+        self.stop_flag = False
+        print("线程已经全部停止")
 
     def mysql_edit(self):
         host = input("请输入MySQL服务器地址：")

@@ -4,12 +4,12 @@ from dbconfig import MySQLInfo
 
 
 class FtpServerInfo:
-    def __init__(self, name, host, port, username, password, path):
+    def __init__(self, name, host, port, username, passwd, path):
         self.name = name
         self.host = host
         self.port = port
         self.username = username
-        self.password = password
+        self.passwd = passwd
         self.path = path
 
 
@@ -20,34 +20,30 @@ class FtpServerManager:
             host=mysqlinfo.get('host'),
             port=mysqlinfo.get('port'),
             user=mysqlinfo.get('user'),
-            passwd=mysqlinfo.get('password'),
+            passwd=mysqlinfo.get('passwd'),
             database='mrosync'
         )
 
-    def add_server(self, name, host, port, username, password, path):
+    def add_server(self, name, host, port, username, passwd, path):
         try:
-            # Check if server can be connected
             ftp = ftplib.FTP()
             ftp.connect(host, int(port))
-            ftp.login(username, password)
+            ftp.login(username, passwd)
             ftp.quit()
-            # Add server to database
-            self.db.insert(name, host, port, username, password, path)
+            self.db.insert(name, host, port, username, passwd, path)
             return True
         except Exception as err:
             print('add ftpserver Error:', err)
             return False
 
-    def update_server(self, name, host, port, username, password, path):
+    def update_server(self, name, host, port, username, passwd, path):
         try:
-            # Check if server can be connected
             ftp = ftplib.FTP()
             ftp.connect(host, int(port))
-            ftp.login(username, password)
+            ftp.login(username, passwd)
             ftp.quit()
 
-            # Update server in database
-            self.db.update(name, host, port, username, password, path)
+            self.db.update(name, host, port, username, passwd, path)
             return True
         except Exception as err:
             print('update ftpserver Error:', err)
@@ -66,7 +62,7 @@ class FtpServerManager:
         try:
             ftp = ftplib.FTP()
             ftp.connect(ftpinfo.host, int(ftpinfo.port))
-            ftp.login(ftpinfo.username, ftpinfo.password)
+            ftp.login(ftpinfo.username, ftpinfo.passwd)
             ftp.quit()
             return True
         except Exception as err:
@@ -80,7 +76,7 @@ class FtpServerManager:
             try:
                 ftp = ftplib.FTP()
                 ftp.connect(server.host, int(server.port))
-                ftp.login(server.username, server.password)
+                ftp.login(server.username, server.passwd)
                 ftp.quit()
             except Exception as err:
                 unconnected_servers.append({'ftp name': server.name, 'error': err})
@@ -97,15 +93,11 @@ class FtpServerManager:
         # 检查每个ftp服务器是否能连接，如果能连接则添加到结果列表中
         result = []
         for server in servers:
-            host = server[1]
-            port = server[2]
-            username = server[3]
-            password = server[4]
             try:
-                print('Check FtpServer[()]'.format(host))
+                print('Check FtpServer[()]'.format(server.host))
                 ftp = ftplib.FTP()
-                ftp.connect(host, int(port))
-                ftp.login(username, password)
+                ftp.connect(server.host, int(server.port))
+                ftp.login(server.username, server.passwd)
                 result.append(server)
                 ftp.quit()
             except Exception as err:
